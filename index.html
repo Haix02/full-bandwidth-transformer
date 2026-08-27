@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Full-bandwidth Transformer — open implementation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --ink: #1a140f;
+      --paper: #f3ead7;
+      --rule: #c9b89a;
+      --wire: #c45c26;
+      --mute: #6b5e4e;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--paper); color: var(--ink); }
+    body {
+      font-family: Newsreader, "Iowan Old Style", Georgia, serif;
+      font-size: 18px;
+      line-height: 1.45;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 48px 24px 96px; }
+    h1 {
+      font-weight: 600;
+      font-size: clamp(2.1rem, 5vw, 3.4rem);
+      letter-spacing: -0.03em;
+      margin: 0 0 8px;
+    }
+    .kicker {
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--wire);
+      margin-bottom: 18px;
+    }
+    .lede { font-size: 1.15rem; max-width: 40rem; }
+    a { color: var(--wire); }
+    hr { border: 0; border-top: 1px solid var(--rule); margin: 36px 0; }
+    .channels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin: 28px 0 8px;
+    }
+    .ch {
+      border: 1px solid var(--ink);
+      padding: 16px 16px 20px;
+    }
+    .ch h2 { font-size: 0.95rem; margin: 0 0 12px; font-family: "IBM Plex Mono", monospace; font-weight: 600; }
+    .pipe {
+      height: 54px;
+      background: repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 10px);
+      opacity: 0.18;
+    }
+    .ch.wide .pipe {
+      background: var(--ink);
+      opacity: 0.88;
+    }
+    .ch.narrow .pipe { width: 10px; }
+    code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.82rem; }
+    .eq {
+      background: #efe4cc;
+      border-left: 4px solid var(--wire);
+      padding: 14px 16px;
+      overflow-x: auto;
+    }
+    button {
+      font-family: "IBM Plex Mono", monospace;
+      background: var(--ink);
+      color: var(--paper);
+      border: 0;
+      padding: 10px 16px;
+      cursor: pointer;
+    }
+    button:hover { background: var(--wire); }
+    pre {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 16px;
+      overflow-x: auto;
+      font-size: 13px;
+      min-height: 7rem;
+    }
+    .mute { color: var(--mute); font-size: 0.95rem; }
+    @media (max-width: 700px) { .channels { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="kicker">arXiv:2608.08888 · open reference · no official code</p>
+    <h1>The vertical channel was one token wide.</h1>
+    <p class="lede">
+      Wang et al. (2026) keep the transformer, the KV cache, and next-token loss.
+      They change only the wire between steps: the previous top-layer state
+      re-enters the stack through a gated linear unit, not through a sampled symbol.
+    </p>
+
+    <div class="channels">
+      <div class="ch narrow">
+        <h2>Standard decode</h2>
+        <div class="pipe" aria-hidden="true"></div>
+        <p class="mute">Feedback = one token. Hidden state discarded.</p>
+      </div>
+      <div class="ch wide">
+        <h2>Latent feedback</h2>
+        <div class="pipe" aria-hidden="true"></div>
+        <p class="mute">Feedback = full residual stream, gated by the token.</p>
+      </div>
+    </div>
+
+    <p class="eq mono">e ⊗ h = W<sub>U</sub> h  ⊙  σ(W<sub>G</sub> e)</p>
+    <p class="mute">
+      Value path is the hidden state. Token is only the gate.
+      If <span class="mono">h = 0</span>, the fused input is identically zero — no additive shortcut back to a plain embedding.
+    </p>
+
+    <hr/>
+    <p><strong>Probe Eq. (4) on this host</strong> (no PyTorch on Vercel).</p>
+    <p>
+      <button type="button" id="run">Fuse a 4-d toy state</button>
+    </p>
+    <pre id="out">click to run /api/fuse</pre>
+
+    <hr/>
+    <p>
+      Train the tiny model locally:
+    </p>
+    <p class="eq mono">pip install -e ".[train]" && python -m fullbandwidth.train</p>
+    <p class="mute">
+      Source:
+      <a href="https://github.com/Haix02/full-bandwidth-transformer">github.com/Haix02/full-bandwidth-transformer</a>
+      · paper:
+      <a href="https://arxiv.org/abs/2608.08888">arxiv.org/abs/2608.08888</a>
+    </p>
+  </div>
+  <script>
+    const identity = (n) => Array.from({ length: n }, (_, i) =>
+      Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))
+    );
+    document.getElementById("run").addEventListener("click", async () => {
+      const out = document.getElementById("out");
+      out.textContent = "…";
+      const body = {
+        hidden: [0.8, -0.2, 1.1, 0.4],
+        embedding: [0.3, 0.9, -0.5, 0.1],
+        w_u: identity(4),
+        w_g: identity(4)
+      };
+      const res = await fetch("/api/fuse", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      out.textContent = JSON.stringify(await res.json(), null, 2);
+    });
+  </script>
+</body>
+</html>

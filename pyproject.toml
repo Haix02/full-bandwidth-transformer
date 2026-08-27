@@ -1,0 +1,36 @@
+[project]
+name = "full-bandwidth-transformer"
+version = "0.1.0"
+description = "Open implementation of the Full-bandwidth Transformer (Wang et al., 2026). The paper released no code."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Haix02" }]
+dependencies = [
+  "fastapi>=0.115",
+]
+
+[project.optional-dependencies]
+train = ["torch>=2.2"]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+
+[project.scripts]
+fbt-train = "fullbandwidth.train:main"
+fbt-generate = "fullbandwidth.generate:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+
+[tool.vercel]
+entrypoint = "app.py"
