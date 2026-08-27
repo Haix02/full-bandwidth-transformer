@@ -33,4 +33,4 @@ testpaths = ["tests"]
 pythonpath = ["src", "."]
 
 [tool.vercel]
-entrypoint = "app.py"
+entrypoint = "app:app"
